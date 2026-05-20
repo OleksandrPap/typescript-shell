@@ -38,7 +38,18 @@ rl.on("line", (command) => {
       else console.log(`${type} not found`);
     }
   } else if (command === "pwd") console.log(process.cwd());
-  else if (findExec(command.split(" ")[0])) {
+  else if (command.startsWith("cd ")) {
+    const path = command.slice(3);
+    if (!fs.existsSync(path)) {
+      console.log(`cd: ${path}: No such file or directory`);
+    } else {
+      try {
+        process.chdir(path);
+      } catch (err) {
+        return;
+      }
+    }
+  } else if (findExec(command.split(" ")[0])) {
     execSync(command, { stdio: "inherit" });
   } else console.log(`${command}: command not found`);
   rl.prompt();
