@@ -9,49 +9,52 @@ const rl = createInterface({
   prompt: "$ ",
 });
 
-const builtins = ["exit", "echo", "type", "pwd"];
-const pathDirs = process.env.PATH?.split(path.delimiter) || [];
-
 const findExec = (cmd: string) => {
+  const pathDirs = process.env.PATH?.split(path.delimiter) || [];
   for (const dir of pathDirs) {
     const fullPath = path.join(dir, cmd);
     if (fs.existsSync(fullPath)) {
       try {
         fs.accessSync(fullPath, fs.constants.X_OK);
         return fullPath;
-      } catch (err) {
-        continue;
-      }
+      } catch (err) {}
     }
   }
-  return "";
+};
+const parseCmd = (input: string) => {
+  const [cmd, ...args] = input.split(" ");
+  return { cmd, args };
+};
+
+const lookUp: Record<string, (args: string[]) => void> = {
+  exit: () => rl.close(),
+  echo: (args) => console.log(args.join(" ")),
+  type: (cmd) => {
+    const type = cmd[0];
+    if (lookUp[type]) return console.log(`${type} is a shell builtin`);
+    const path = findExec(type);
+    if (path) console.log(`${type} is ${path}`);
+    else console.log(`${type} not found`);
+  },
+  pwd: () => console.log(process.cwd()),
+  cd: (args) =>
+    fs.existsSync(args[0])
+      ? process.chdir(args[0])
+      : console.log(`cd: ${args[0]}: No such file or directory`),
 };
 
 rl.on("line", (command) => {
-  if (command === "exit") return rl.close();
-  else if (command.startsWith("type ")) {
-    const type = command.slice(5);
-    if (builtins.includes(type)) console.log(`${type} is a shell builtin`);
-    else {
-      const path = findExec(type);
-      if (path) console.log(`${type} is ${path}`);
-      else console.log(`${type} not found`);
-    }
-  } else if (command === "pwd") console.log(process.cwd());
-  else if (command.startsWith("cd ")) {
-    const path = command.slice(3);
-    if (!fs.existsSync(path)) {
-      console.log(`cd: ${path}: No such file or directory`);
-    } else {
-      try {
-        process.chdir(path);
-      } catch (err) {
-        return;
-      }
-    }
-  } else if (findExec(command.split(" ")[0])) {
-    execSync(command, { stdio: "inherit" });
-  } else console.log(`${command}: command not found`);
+  const { cmd, args } = parseCmd(command);
+  const func = lookUp[cmd];
+  if (func) {
+    func(args);
+    if (cmd !== "exit") rl.prompt();
+    return;
+  }
+
+  const exec = findExec(cmd);
+  if (exec) execSync(command, { stdio: "inherit" });
+  else console.log(`${command}: command not found`);
   rl.prompt();
 });
 rl.prompt();
