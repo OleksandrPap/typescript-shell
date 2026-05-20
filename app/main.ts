@@ -6,6 +6,8 @@ const rl = createInterface({
   prompt: "$ ",
 });
 
-// TODO: Uncomment the code below to pass the first stage
+rl.on("line", (command) => {
+  console.log(`${command}: command not found`);
+  rl.prompt();
+});
 rl.prompt();
-rl.on("line", (command) => console.log(`${command}: command not found`));
