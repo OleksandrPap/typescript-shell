@@ -37,10 +37,12 @@ const lookUp: Record<string, (args: string[]) => void> = {
     else console.log(`${type} not found`);
   },
   pwd: () => console.log(process.cwd()),
-  cd: (args) =>
-    fs.existsSync(args[0])
-      ? process.chdir(args[0])
-      : console.log(`cd: ${args[0]}: No such file or directory`),
+  cd: (args) => {
+    const isTilda = args[0] === "~";
+    fs.existsSync(args[0]) || isTilda
+      ? process.chdir(isTilda ? process.env.HOME || "" : args[0])
+      : console.log(`cd: ${args[0]}: No such file or directory`);
+  },
 };
 
 rl.on("line", (command) => {
