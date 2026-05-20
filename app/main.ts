@@ -9,7 +9,7 @@ const rl = createInterface({
   prompt: "$ ",
 });
 
-const builtins = ["exit", "echo", "type"];
+const builtins = ["exit", "echo", "type", "pwd"];
 const pathDirs = process.env.PATH?.split(path.delimiter) || [];
 
 const findExec = (cmd: string) => {
@@ -37,7 +37,9 @@ rl.on("line", (command) => {
       if (path) console.log(`${type} is ${path}`);
       else console.log(`${type} not found`);
     }
-  } else if (findExec(command.split(" ")[0])) {
+  } else if (command === "pwd")
+    console.log(__dirname.slice(0, __dirname.lastIndexOf("/")));
+  else if (findExec(command.split(" ")[0])) {
     execSync(command, { stdio: "inherit" });
   } else console.log(`${command}: command not found`);
   rl.prompt();
