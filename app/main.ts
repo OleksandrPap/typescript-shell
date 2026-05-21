@@ -21,8 +21,37 @@ const findExec = (cmd: string) => {
     }
   }
 };
+
+function splitPreservingQuotes(input: string): string[] {
+  const result: string[] = [];
+  let current = "";
+  let inQuotes = false;
+  for (let i = 0; i < input.length; i++) {
+    const char = input[i];
+    if (char === "'") {
+      if (input[i + 1] === "'") {
+        current += "";
+        i++;
+        continue;
+      }
+      inQuotes = !inQuotes;
+      continue;
+    }
+    if (char === " " && !inQuotes) {
+      if (current.length > 0) {
+        result.push(current);
+        current = "";
+      }
+      continue;
+    }
+    current += char;
+  }
+  if (current.length > 0) result.push(current);
+  return result;
+}
+
 const parseCmd = (input: string) => {
-  const [cmd, ...args] = input.split(" ");
+  const [cmd, ...args] = splitPreservingQuotes(input);
   return { cmd, args };
 };
 
