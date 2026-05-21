@@ -2,11 +2,15 @@
   "name": "@codecrafters/shell",
   "devDependencies": {
     "@types/bun": "latest",
-    "@types/node": "^25.9.1"
+    "@types/node": "^25.9.1",
+    "@types/shell-quote": "^1.7.5"
   },
   "description": "Build your own Shell challenge, from CodeCrafters",
   "scripts": {
     "dev": "bun run app/main.ts"
   },
-  "type": "module"
+  "type": "module",
+  "dependencies": {
+    "shell-quote": "^1.8.3"
+  }
 }

@@ -2,6 +2,7 @@ import { createInterface } from "readline";
 import path from "path";
 import fs from "fs";
 import { execSync } from "child_process";
+import { parse } from "shell-quote";
 
 const rl = createInterface({
   input: process.stdin,
@@ -22,36 +23,8 @@ const findExec = (cmd: string) => {
   }
 };
 
-function splitPreservingQuotes(input: string): string[] {
-  const result: string[] = [];
-  let current = "";
-  let inQuotes = false;
-  for (let i = 0; i < input.length; i++) {
-    const char = input[i];
-    if (char === "'") {
-      if (input[i + 1] === "'") {
-        current += "";
-        i++;
-        continue;
-      }
-      inQuotes = !inQuotes;
-      continue;
-    }
-    if (char === " " && !inQuotes) {
-      if (current.length > 0) {
-        result.push(current);
-        current = "";
-      }
-      continue;
-    }
-    current += char;
-  }
-  if (current.length > 0) result.push(current);
-  return result;
-}
-
 const parseCmd = (input: string) => {
-  const [cmd, ...args] = splitPreservingQuotes(input);
+  const [cmd, ...args] = parse(input) as string[];
   return { cmd, args };
 };
 
