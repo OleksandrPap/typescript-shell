@@ -1,6 +1,6 @@
 import { createInterface } from "readline";
 import path from "path";
-import fs from "fs";
+import fs, { writeFileSync } from "fs";
 import { execSync } from "child_process";
 import { parse } from "shell-quote";
 
@@ -28,17 +28,17 @@ const parseCmd = (input: string) => {
   return { cmd, args };
 };
 
-const lookUp: Record<string, (args: string[]) => void> = {
+const lookUp: Record<string, (args: string[]) => string | void> = {
   exit: () => rl.close(),
-  echo: (args) => console.log(args.join(" ")),
+  echo: (args) => args.join(" "),
   type: (cmd) => {
     const type = cmd[0];
-    if (lookUp[type]) return console.log(`${type} is a shell builtin`);
-    const path = findExec(type);
-    if (path) console.log(`${type} is ${path}`);
-    else console.log(`${type} not found`);
+    if (lookUp[type]) return `${type} is a shell builtin`;
+    const execPath = findExec(type);
+    if (execPath) return `${type} is ${execPath}`;
+    else return `${type} not found`;
   },
-  pwd: () => console.log(process.cwd()),
+  pwd: () => process.cwd(),
   cd: (args) => {
     const isTilda = args[0] === "~";
     fs.existsSync(args[0]) || isTilda
@@ -49,16 +49,36 @@ const lookUp: Record<string, (args: string[]) => void> = {
 
 rl.on("line", (command) => {
   const { cmd, args } = parseCmd(command);
+  let operatorIndex = -1;
+  args.map((arg, index) => {
+    if (typeof arg === "object" && (arg as { op: string }).op === ">") {
+      operatorIndex = index;
+    }
+  });
   const func = lookUp[cmd];
   if (func) {
-    func(args);
+    if (operatorIndex !== -1) {
+      const output = func(
+        args.slice(
+          0,
+          args[operatorIndex - 1] === "1" ? operatorIndex - 1 : operatorIndex,
+        ),
+      );
+      writeFileSync(args[operatorIndex + 1], (output ?? "") + "\n");
+    } else {
+      const output = func(args);
+      if (output !== undefined) console.log(output);
+    }
     if (cmd !== "exit") rl.prompt();
     return;
   }
 
   const exec = findExec(cmd);
-  if (exec) execSync(command, { stdio: "inherit" });
-  else console.log(`${command}: command not found`);
+  if (exec) {
+    try {
+      execSync(command, { stdio: "inherit" });
+    } catch {}
+  } else console.log(`${command}: command not found`);
   rl.prompt();
 });
 rl.prompt();
