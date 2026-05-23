@@ -5,7 +5,7 @@ import { execSync, spawn } from "child_process";
 import { parse } from "shell-quote";
 
 let lastTabLine: string | null = null;
-let jobs = new Map<number, number>();
+let jobs = new Map<number, { pid: number; job: string }>();
 
 const lcp = (strs: string[]): string => {
   if (strs.length === 0) return "";
@@ -198,7 +198,14 @@ const lookUp: Record<string, (args: string[]) => string | void> = {
       }
     }
   },
-  jobs: (args) => {},
+  jobs: () => {
+    if (!jobs.size) return;
+    let jobsTable = "";
+    jobs.forEach((value, jobId) => {
+      jobsTable += `[${jobId}]+  Running                 ${value.job}\n`;
+    });
+    return jobsTable.trim();
+  },
 };
 
 const BUILTINS = Object.keys(lookUp);
@@ -215,7 +222,7 @@ rl.on("line", (command) => {
     });
     child.unref();
     const jobId = jobs.size + 1;
-    jobs.set(jobId, child.pid || 0);
+    jobs.set(jobId, { pid: child.pid || 0, job: command });
     console.log(`[${jobId}] ${child.pid}`);
     rl.prompt();
     return;
