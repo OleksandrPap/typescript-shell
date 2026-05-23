@@ -64,6 +64,23 @@ const rl = createInterface({
   completer: (line: string) => {
     const tokens = line.split(" ");
     if (tokens.length > 1) {
+      const scriptPath = registeredCompletions.get(tokens[0]);
+      if (scriptPath) {
+        const arg = tokens[tokens.length - 1];
+        const prev = tokens[tokens.length - 2] ?? "";
+        try {
+          const output = execSync(`${scriptPath} ${tokens[0]} ${arg} ${prev}`, {
+            env: { ...process.env, COMP_LINE: line, COMP_POINT: String(line.length) },
+          }).toString();
+          const candidates = output
+            .split("\n")
+            .filter(Boolean)
+            .map((n) => ({ display: n, completion: n + " " }));
+          return resolveCompletion(candidates, arg, line);
+        } catch {
+          return [[], line];
+        }
+      }
       const arg = tokens[tokens.length - 1];
       const lastSlash = arg.lastIndexOf("/");
       const dirPart = lastSlash >= 0 ? arg.slice(0, lastSlash + 1) : "";
