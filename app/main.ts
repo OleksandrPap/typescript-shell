@@ -155,6 +155,7 @@ const lookUp: Record<string, (args: string[]) => string | void> = {
       ? process.chdir(isTilda ? process.env.HOME || "" : args[0])
       : console.log(`cd: ${args[0]}: No such file or directory`);
   },
+  complete: (args) => {},
 };
 
 rl.on("line", (command) => {
