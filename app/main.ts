@@ -24,9 +24,14 @@ const rl = createInterface({
   completer: (line: string) => {
     const lines = line.split(" ");
     if (lines.length > 1) {
-      const fileName = lines[1];
+      const path = lines[1];
+      const fileName = path.split("/").pop() || "";
+
       const files = fs
-        .readdirSync(process.cwd(), { withFileTypes: true })
+        .readdirSync(
+          path.includes("/") ? process.cwd() + "/" + path : process.cwd(),
+          { withFileTypes: true },
+        )
         .filter((f) => f.isFile() && f.name.startsWith(fileName))
         .map((f) => f.name + " ");
 
