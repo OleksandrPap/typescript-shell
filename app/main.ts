@@ -5,7 +5,11 @@ import { execSync, spawn } from "child_process";
 import { parse } from "shell-quote";
 
 let lastTabLine: string | null = null;
-let jobs = new Map<number, { pid: number; job: string }>();
+const JOBS_STATUS = {
+  RUNNING: "Running",
+  DONE: "Done",
+};
+let jobs = new Map<number, { job: string; status: string }>();
 
 const lcp = (strs: string[]): string => {
   if (strs.length === 0) return "";
@@ -201,9 +205,12 @@ const lookUp: Record<string, (args: string[]) => string | void> = {
   jobs: () => {
     if (!jobs.size) return;
     let jobsTable = "";
+    const toReap: number[] = [];
     jobs.forEach((value, jobId) => {
-      jobsTable += `[${jobId}]${jobId === jobs.size ? "+" : jobId === jobs.size - 1 ? "-" : " "}  Running${" ".repeat(17)}${value.job}\n`;
+      jobsTable += `[${jobId}]${jobId === jobs.size ? "+" : jobId === jobs.size - 1 ? "-" : " "}  ${value.status}${" ".repeat(17)}${value.job}\n`;
+      if (value.status === JOBS_STATUS.DONE) toReap.push(jobId);
     });
+    toReap.forEach((id) => jobs.delete(id));
     return jobsTable.trim();
   },
 };
@@ -216,13 +223,19 @@ rl.on("line", (command) => {
   const isBackground =
     typeof lastArg === "object" && (lastArg as { op: string }).op === "&";
   if (isBackground) {
+    const jobId = jobs.size + 1;
     const child = spawn(cmd, args.slice(0, -1) as string[], {
       detached: true,
       stdio: ["ignore", "inherit", "inherit"],
     });
+    jobs.set(jobId, {
+      job: command.trimEnd().slice(0, -1).trimEnd(),
+      status: JOBS_STATUS.RUNNING,
+    });
+    child.on("exit", () =>
+      jobs.set(jobId, { ...jobs.get(jobId)!, status: JOBS_STATUS.DONE }),
+    );
     child.unref();
-    const jobId = jobs.size + 1;
-    jobs.set(jobId, { pid: child.pid || 0, job: command });
     console.log(`[${jobId}] ${child.pid}`);
     rl.prompt();
     return;
