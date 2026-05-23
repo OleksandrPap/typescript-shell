@@ -17,79 +17,76 @@ const lcp = (strs: string[]): string => {
   return prefix;
 };
 
+type Candidate = { display: string; completion: string };
+
+const resolveCompletion = (
+  candidates: Candidate[],
+  word: string,
+  fullLine: string,
+): [string[], string] => {
+  if (candidates.length === 0) {
+    lastTabLine = null;
+    process.stdout.write("\x07");
+    return [[], fullLine];
+  }
+  if (candidates.length === 1) {
+    lastTabLine = null;
+    return [[candidates[0].completion], word];
+  }
+  const common = lcp(candidates.map((c) => c.completion.trimEnd()));
+  if (common.length > word.length) {
+    lastTabLine = null;
+    return [[common], word];
+  }
+  if (lastTabLine === fullLine) {
+    lastTabLine = null;
+    process.stdout.write("\n" + candidates.map((c) => c.display).sort().join("  ") + "\n");
+    rl.prompt(true);
+    return [[], fullLine];
+  }
+  lastTabLine = fullLine;
+  process.stdout.write("\x07");
+  return [[], fullLine];
+};
+
 const rl = createInterface({
   input: process.stdin,
   output: process.stdout,
   prompt: "$ ",
   completer: (line: string) => {
-    const lines = line.split(" ");
-    if (lines.length > 1) {
-      const path = lines[1];
-      const fileName = path.split("/").pop() || "";
-
-      const files = fs
-        .readdirSync(
-          path.includes("/") ? process.cwd() + "/" + path : process.cwd(),
-          { withFileTypes: true },
-        )
-        .filter((f) => f.isFile() && f.name.startsWith(fileName))
-        .map((f) => f.name + " ");
-
-      if (files.length === 1) {
-        return [files, fileName];
+    const tokens = line.split(" ");
+    if (tokens.length > 1) {
+      const arg = tokens[tokens.length - 1];
+      const lastSlash = arg.lastIndexOf("/");
+      const dirPart = lastSlash >= 0 ? arg.slice(0, lastSlash + 1) : "";
+      const fileName = arg.slice(lastSlash + 1);
+      const absDir = path.resolve(process.cwd(), dirPart || ".");
+      try {
+        const candidates = fs
+          .readdirSync(absDir, { withFileTypes: true })
+          .filter((f) => f.name.startsWith(fileName))
+          .map((f) => ({
+            display: f.name + (f.isDirectory() ? "/" : ""),
+            completion: dirPart + f.name + (f.isDirectory() ? "/" : " "),
+          }));
+        return resolveCompletion(candidates, arg, line);
+      } catch {
+        return [[], line];
       }
-
-      const file = lcp(files);
-      if (file) return [[file], fileName];
     }
-    const builtinHits = BUILTINS.filter((b) => b.startsWith(line)).map(
-      (b) => b + " ",
-    );
+
+    const builtinHits = BUILTINS.filter((b) => b.startsWith(line));
     const pathDirs = process.env.PATH?.split(path.delimiter) || [];
     const execHits = pathDirs.flatMap((dir) => {
       try {
-        return fs
-          .readdirSync(dir)
-          .filter((f) => f.startsWith(line))
-          .map((f) => f + " ");
+        return fs.readdirSync(dir).filter((f) => f.startsWith(line));
       } catch {
         return [];
       }
     });
-    const hits = [...new Set([...builtinHits, ...execHits])];
-    // console.log(hits);
-
-    if (hits.length === 0) {
-      lastTabLine = null;
-      process.stdout.write("\x07");
-      return [[], line];
-    }
-
-    if (hits.length === 1) {
-      lastTabLine = null;
-      return [hits, line];
-    }
-
-    const common = lcp(hits.map((h) => h.trimEnd()));
-    if (common.length > line.length) {
-      lastTabLine = null;
-      return [[common], line];
-    }
-
-    if (lastTabLine === line) {
-      lastTabLine = null;
-      const display = hits
-        .map((h) => h.trimEnd())
-        .sort()
-        .join("  ");
-      process.stdout.write("\n" + display + "\n");
-      rl.prompt(true);
-      return [[], line];
-    }
-
-    lastTabLine = line;
-    process.stdout.write("\x07");
-    return [[], line];
+    const names = [...new Set([...builtinHits, ...execHits])];
+    const candidates = names.map((n) => ({ display: n, completion: n + " " }));
+    return resolveCompletion(candidates, line, line);
   },
 });
 
