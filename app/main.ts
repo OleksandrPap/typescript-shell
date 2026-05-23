@@ -199,23 +199,27 @@ const lookUp: Record<string, (args: string[]) => string | void> = {
     }
   },
   jobs: (args) => {},
-  sleep: (args) => {
-    if (typeof args[1] === "object" && (args[1] as { op: string }).op === "&") {
-      const child = spawn("sleep", [args[0]], {
-        detached: true,
-        stdio: "ignore",
-      });
-      child.unref();
-      jobs.set(jobs.size + 1, child.pid || 0);
-      return `[${jobs.size}] ${child.pid}`;
-    }
-  },
 };
 
 const BUILTINS = Object.keys(lookUp);
 
 rl.on("line", (command) => {
   const { cmd, args } = parseCmd(command);
+  const lastArg = args.at(-1);
+  const isBackground =
+    typeof lastArg === "object" && (lastArg as { op: string }).op === "&";
+  if (isBackground) {
+    const child = spawn(cmd, args.slice(0, -1) as string[], {
+      detached: true,
+      stdio: ["ignore", "inherit", "inherit"],
+    });
+    child.unref();
+    const jobId = jobs.size + 1;
+    jobs.set(jobId, child.pid || 0);
+    console.log(`[${jobId}] ${child.pid}`);
+    rl.prompt();
+    return;
+  }
   const { cleanArgs, redirect } = parseRedirect(args);
   const func = lookUp[cmd];
   if (func) {
