@@ -11,7 +11,20 @@ const rl = createInterface({
   output: process.stdout,
   prompt: "$ ",
   completer: (line: string) => {
-    const hits = BUILTINS.map((h) => h + " ").filter((c) => c.startsWith(line));
+    const builtinHits = BUILTINS.map((h) => h + " ").filter((c) =>
+      c.startsWith(line),
+    );
+    const pathDirs = process.env.PATH?.split(path.delimiter) || [];
+
+    const execHits = pathDirs.flatMap((dir) => {
+      try {
+        return fs.readdirSync(dir).filter((f) => f.startsWith(line)).map((f) => f + " ");
+      } catch {
+        return [];
+      }
+    });
+
+    const hits = [...new Set([...builtinHits, ...execHits])];
     if (hits.length === 0) process.stdout.write("\x07");
     return [hits.length ? hits : [], line];
   },
