@@ -50,21 +50,30 @@ const lookUp: Record<string, (args: string[]) => string | void> = {
 rl.on("line", (command) => {
   const { cmd, args } = parseCmd(command);
   let operatorIndex = -1;
-  args.map((arg, index) => {
+  let redirectType = "stdout";
+  args.forEach((arg, index) => {
     if (typeof arg === "object" && (arg as { op: string }).op === ">") {
       operatorIndex = index;
+      redirectType = args[index - 1] === "2" ? "stderr" : "stdout";
     }
   });
   const func = lookUp[cmd];
   if (func) {
     if (operatorIndex !== -1) {
-      const output = func(
-        args.slice(
-          0,
-          args[operatorIndex - 1] === "1" ? operatorIndex - 1 : operatorIndex,
-        ),
-      );
-      writeFileSync(args[operatorIndex + 1], (output ?? "") + "\n");
+      const redirectFile = args[operatorIndex + 1] as string;
+      const dir = path.dirname(redirectFile);
+      if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+      if (redirectType === "stderr") {
+        const actualArgs = args.slice(0, operatorIndex - 1) as string[];
+        const output = func(actualArgs);
+        if (output !== undefined) console.log(output);
+        writeFileSync(redirectFile, "");
+      } else {
+        const isExplicit1 = args[operatorIndex - 1] === "1";
+        const actualArgs = args.slice(0, isExplicit1 ? operatorIndex - 1 : operatorIndex) as string[];
+        const output = func(actualArgs);
+        writeFileSync(redirectFile, (output ?? "") + "\n");
+      }
     } else {
       const output = func(args);
       if (output !== undefined) console.log(output);
