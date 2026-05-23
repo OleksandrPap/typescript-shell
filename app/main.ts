@@ -155,7 +155,12 @@ const lookUp: Record<string, (args: string[]) => string | void> = {
       ? process.chdir(isTilda ? process.env.HOME || "" : args[0])
       : console.log(`cd: ${args[0]}: No such file or directory`);
   },
-  complete: (args) => {},
+  complete: (args) => {
+    if(args[0] === '-p') {
+      // TODO: check the registry
+      return `complete: ${args[1]}: no completion specification`
+    }
+  },
 };
 
 rl.on("line", (command) => {
