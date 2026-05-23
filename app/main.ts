@@ -25,8 +25,8 @@ const rl = createInterface({
     });
 
     const hits = [...new Set([...builtinHits, ...execHits])];
-    if (hits.length === 0) process.stdout.write("\x07");
-    return [hits.length ? hits : [], line];
+    if (hits.length !== 1) process.stdout.write("\x07");
+    return [hits.length === 1 ? hits : [], line];
   },
 });
 
