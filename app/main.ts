@@ -70,7 +70,11 @@ const rl = createInterface({
         const prev = tokens[tokens.length - 2] ?? "";
         try {
           const output = execSync(`${scriptPath} ${tokens[0]} ${arg} ${prev}`, {
-            env: { ...process.env, COMP_LINE: line, COMP_POINT: String(line.length) },
+            env: {
+              ...process.env,
+              COMP_LINE: line,
+              COMP_POINT: String(line.length),
+            },
           }).toString();
           const candidates = output
             .split("\n")
@@ -174,18 +178,25 @@ const lookUp: Record<string, (args: string[]) => string | void> = {
       : console.log(`cd: ${args[0]}: No such file or directory`);
   },
   complete: (args) => {
-    if (args[0] === "-C") {
-      const path = args[1];
-      const name = args[2];
-      registeredCompletions.set(name, path);
-    }
-    if (args[0] === "-p") {
-      const name = args[1];
-      const path = registeredCompletions.get(name);
-      if (!path) {
-        return `complete: ${name}: no completion specification`;
+    const flag = args[0];
+    switch (flag) {
+      case "-C": {
+        const path = args[1];
+        const name = args[2];
+        registeredCompletions.set(name, path);
+        break;
       }
-      return `complete -C '${path}' ${name}`;
+      case "-p": {
+        const name = args[1];
+        const path = registeredCompletions.get(name);
+        if (!path) return `complete: ${name}: no completion specification`;
+        return `complete -C '${path}' ${name}`;
+      }
+      case "-r": {
+        const name = args[1];
+        registeredCompletions.delete(name);
+        break;
+      }
     }
   },
 };
