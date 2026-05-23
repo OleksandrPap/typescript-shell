@@ -4,8 +4,6 @@ import fs, { writeFileSync } from "fs";
 import { execSync } from "child_process";
 import { parse } from "shell-quote";
 
-const BUILTINS = ["exit", "echo", "type", "pwd", "cd", "complete"];
-
 let lastTabLine: string | null = null;
 
 const lcp = (strs: string[]): string => {
@@ -199,7 +197,10 @@ const lookUp: Record<string, (args: string[]) => string | void> = {
       }
     }
   },
+  jobs: (args) => {},
 };
+
+const BUILTINS = Object.keys(lookUp);
 
 rl.on("line", (command) => {
   const { cmd, args } = parseCmd(command);
