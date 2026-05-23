@@ -12,6 +12,7 @@ const rl = createInterface({
   prompt: "$ ",
   completer: (line: string) => {
     const hits = BUILTINS.map((h) => h + " ").filter((c) => c.startsWith(line));
+    if (hits.length === 0) process.stdout.write("\x07");
     return [hits.length ? hits : [], line];
   },
 });
