@@ -8,6 +8,15 @@ const BUILTINS = ["exit", "echo", "type", "pwd", "cd"];
 
 let lastTabLine: string | null = null;
 
+const lcp = (strs: string[]): string => {
+  if (strs.length === 0) return "";
+  let prefix = strs[0];
+  for (const s of strs.slice(1)) {
+    while (!s.startsWith(prefix)) prefix = prefix.slice(0, -1);
+  }
+  return prefix;
+};
+
 const rl = createInterface({
   input: process.stdin,
   output: process.stdout,
@@ -24,12 +33,24 @@ const rl = createInterface({
     });
     const hits = [...new Set([...builtinHits, ...execHits])];
 
+    if (hits.length === 0) {
+      lastTabLine = null;
+      process.stdout.write("\x07");
+      return [[], line];
+    }
+
     if (hits.length === 1) {
       lastTabLine = null;
       return [hits, line];
     }
 
-    if (hits.length > 1 && lastTabLine === line) {
+    const common = lcp(hits.map((h) => h.trimEnd()));
+    if (common.length > line.length) {
+      lastTabLine = null;
+      return [[common], line];
+    }
+
+    if (lastTabLine === line) {
       lastTabLine = null;
       const display = hits.map((h) => h.trimEnd()).sort().join("  ");
       process.stdout.write("\n" + display + "\n");
@@ -37,7 +58,7 @@ const rl = createInterface({
       return [[], line];
     }
 
-    lastTabLine = hits.length > 0 ? line : null;
+    lastTabLine = line;
     process.stdout.write("\x07");
     return [[], line];
   },
