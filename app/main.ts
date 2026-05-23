@@ -1,10 +1,11 @@
 import { createInterface } from "readline";
 import path from "path";
 import fs, { writeFileSync } from "fs";
-import { execSync } from "child_process";
+import { execSync, spawn } from "child_process";
 import { parse } from "shell-quote";
 
 let lastTabLine: string | null = null;
+let jobs = new Map<number, number>();
 
 const lcp = (strs: string[]): string => {
   if (strs.length === 0) return "";
@@ -198,6 +199,17 @@ const lookUp: Record<string, (args: string[]) => string | void> = {
     }
   },
   jobs: (args) => {},
+  sleep: (args) => {
+    if (typeof args[1] === "object" && (args[1] as { op: string }).op === "&") {
+      const child = spawn("sleep", [args[0]], {
+        detached: true,
+        stdio: "ignore",
+      });
+      child.unref();
+      jobs.set(jobs.size + 1, child.pid || 0);
+      return `[${jobs.size}] ${child.pid}`;
+    }
+  },
 };
 
 const BUILTINS = Object.keys(lookUp);
