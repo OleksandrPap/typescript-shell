@@ -19,6 +19,7 @@ const lcp = (strs: string[]): string => {
 
 type Candidate = { display: string; completion: string };
 
+const registeredCompletions = new Map<string, string>();
 const resolveCompletion = (
   candidates: Candidate[],
   word: string,
@@ -156,9 +157,18 @@ const lookUp: Record<string, (args: string[]) => string | void> = {
       : console.log(`cd: ${args[0]}: No such file or directory`);
   },
   complete: (args) => {
-    if(args[0] === '-p') {
-      // TODO: check the registry
-      return `complete: ${args[1]}: no completion specification`
+    if (args[0] === "-C") {
+      const path = args[1];
+      const name = args[2];
+      registeredCompletions.set(name, path);
+    }
+    if (args[0] === "-p") {
+      const name = args[1];
+      const path = registeredCompletions.get(name);
+      if (!path) {
+        return `complete: ${name}: no completion specification`;
+      }
+      return `complete -C '${path}' ${name}`;
     }
   },
 };
