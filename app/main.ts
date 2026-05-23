@@ -6,16 +6,15 @@ import { parse } from "shell-quote";
 
 const BUILTINS = ["exit", "echo", "type", "pwd", "cd"];
 
+let lastTabLine: string | null = null;
+
 const rl = createInterface({
   input: process.stdin,
   output: process.stdout,
   prompt: "$ ",
   completer: (line: string) => {
-    const builtinHits = BUILTINS.map((h) => h + " ").filter((c) =>
-      c.startsWith(line),
-    );
+    const builtinHits = BUILTINS.filter((b) => b.startsWith(line)).map((b) => b + " ");
     const pathDirs = process.env.PATH?.split(path.delimiter) || [];
-
     const execHits = pathDirs.flatMap((dir) => {
       try {
         return fs.readdirSync(dir).filter((f) => f.startsWith(line)).map((f) => f + " ");
@@ -23,10 +22,24 @@ const rl = createInterface({
         return [];
       }
     });
-
     const hits = [...new Set([...builtinHits, ...execHits])];
-    if (hits.length !== 1) process.stdout.write("\x07");
-    return [hits.length === 1 ? hits : [], line];
+
+    if (hits.length === 1) {
+      lastTabLine = null;
+      return [hits, line];
+    }
+
+    if (hits.length > 1 && lastTabLine === line) {
+      lastTabLine = null;
+      const display = hits.map((h) => h.trimEnd()).sort().join("  ");
+      process.stdout.write("\n" + display + "\n");
+      rl.prompt(true);
+      return [[], line];
+    }
+
+    lastTabLine = hits.length > 0 ? line : null;
+    process.stdout.write("\x07");
+    return [[], line];
   },
 });
 
