@@ -4,7 +4,7 @@ import fs, { writeFileSync } from "fs";
 import { execSync } from "child_process";
 import { parse } from "shell-quote";
 
-const BUILTINS = ["exit", "echo", "type", "pwd", "cd"];
+const BUILTINS = ["exit", "echo", "type", "pwd", "cd", "complete"];
 
 let lastTabLine: string | null = null;
 
@@ -40,7 +40,14 @@ const resolveCompletion = (
   }
   if (lastTabLine === fullLine) {
     lastTabLine = null;
-    process.stdout.write("\n" + candidates.map((c) => c.display).sort().join("  ") + "\n");
+    process.stdout.write(
+      "\n" +
+        candidates
+          .map((c) => c.display)
+          .sort()
+          .join("  ") +
+        "\n",
+    );
     rl.prompt(true);
     return [[], fullLine];
   }
