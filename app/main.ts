@@ -22,16 +22,37 @@ const rl = createInterface({
   output: process.stdout,
   prompt: "$ ",
   completer: (line: string) => {
-    const builtinHits = BUILTINS.filter((b) => b.startsWith(line)).map((b) => b + " ");
+    const lines = line.split(" ");
+    if (lines.length > 1) {
+      const fileName = lines[1];
+      const files = fs
+        .readdirSync(process.cwd(), { withFileTypes: true })
+        .filter((f) => f.isFile() && f.name.startsWith(fileName))
+        .map((f) => f.name + " ");
+
+      if (files.length === 1) {
+        return [files, fileName];
+      }
+
+      const file = lcp(files);
+      if (file) return [[file], fileName];
+    }
+    const builtinHits = BUILTINS.filter((b) => b.startsWith(line)).map(
+      (b) => b + " ",
+    );
     const pathDirs = process.env.PATH?.split(path.delimiter) || [];
     const execHits = pathDirs.flatMap((dir) => {
       try {
-        return fs.readdirSync(dir).filter((f) => f.startsWith(line)).map((f) => f + " ");
+        return fs
+          .readdirSync(dir)
+          .filter((f) => f.startsWith(line))
+          .map((f) => f + " ");
       } catch {
         return [];
       }
     });
     const hits = [...new Set([...builtinHits, ...execHits])];
+    // console.log(hits);
 
     if (hits.length === 0) {
       lastTabLine = null;
@@ -52,7 +73,10 @@ const rl = createInterface({
 
     if (lastTabLine === line) {
       lastTabLine = null;
-      const display = hits.map((h) => h.trimEnd()).sort().join("  ");
+      const display = hits
+        .map((h) => h.trimEnd())
+        .sort()
+        .join("  ");
       process.stdout.write("\n" + display + "\n");
       rl.prompt(true);
       return [[], line];
