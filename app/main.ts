@@ -23,9 +23,26 @@ const findExec = (cmd: string) => {
   }
 };
 
+type Redirect = { fd: 1 | 2; append: boolean; file: string };
+
 const parseCmd = (input: string) => {
   const [cmd, ...args] = parse(input) as string[];
   return { cmd, args };
+};
+
+const parseRedirect = (args: string[]): { cleanArgs: string[]; redirect: Redirect | null } => {
+  for (let i = 0; i < args.length; i++) {
+    const arg = args[i] as unknown;
+    if (typeof arg !== "object") continue;
+    const op = (arg as { op: string }).op;
+    if (op !== ">" && op !== ">>") continue;
+    const hasFd = args[i - 1] === "1" || args[i - 1] === "2";
+    return {
+      cleanArgs: args.slice(0, hasFd ? i - 1 : i),
+      redirect: { fd: args[i - 1] === "2" ? 2 : 1, append: op === ">>", file: args[i + 1] },
+    };
+  }
+  return { cleanArgs: args, redirect: null };
 };
 
 const lookUp: Record<string, (args: string[]) => string | void> = {
@@ -49,33 +66,21 @@ const lookUp: Record<string, (args: string[]) => string | void> = {
 
 rl.on("line", (command) => {
   const { cmd, args } = parseCmd(command);
-  let operatorIndex = -1;
-  let redirectType = "stdout";
-  args.forEach((arg, index) => {
-    if (typeof arg === "object" && (arg as { op: string }).op === ">") {
-      operatorIndex = index;
-      redirectType = args[index - 1] === "2" ? "stderr" : "stdout";
-    }
-  });
+  const { cleanArgs, redirect } = parseRedirect(args);
   const func = lookUp[cmd];
   if (func) {
-    if (operatorIndex !== -1) {
-      const redirectFile = args[operatorIndex + 1] as string;
-      const dir = path.dirname(redirectFile);
+    const output = func(redirect ? cleanArgs : args);
+    if (redirect) {
+      const flag = redirect.append ? "a+" : "w";
+      const dir = path.dirname(redirect.file);
       if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-      if (redirectType === "stderr") {
-        const actualArgs = args.slice(0, operatorIndex - 1) as string[];
-        const output = func(actualArgs);
-        if (output !== undefined) console.log(output);
-        writeFileSync(redirectFile, "");
+      if (redirect.fd === 1) {
+        writeFileSync(redirect.file, (output ?? "") + "\n", { flag });
       } else {
-        const isExplicit1 = args[operatorIndex - 1] === "1";
-        const actualArgs = args.slice(0, isExplicit1 ? operatorIndex - 1 : operatorIndex) as string[];
-        const output = func(actualArgs);
-        writeFileSync(redirectFile, (output ?? "") + "\n");
+        if (output !== undefined) console.log(output);
+        writeFileSync(redirect.file, "", { flag });
       }
     } else {
-      const output = func(args);
       if (output !== undefined) console.log(output);
     }
     if (cmd !== "exit") rl.prompt();
