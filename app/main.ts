@@ -202,7 +202,7 @@ const lookUp: Record<string, (args: string[]) => string | void> = {
     if (!jobs.size) return;
     let jobsTable = "";
     jobs.forEach((value, jobId) => {
-      jobsTable += `[${jobId}]+  Running                 ${value.job}\n`;
+      jobsTable += `[${jobId}]${jobId === jobs.size ? "+" : jobId === jobs.size - 1 ? "-" : " "}  Running${" ".repeat(17)}${value.job}\n`;
     });
     return jobsTable.trim();
   },
