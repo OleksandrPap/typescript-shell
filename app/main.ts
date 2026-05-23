@@ -4,10 +4,16 @@ import fs, { writeFileSync } from "fs";
 import { execSync } from "child_process";
 import { parse } from "shell-quote";
 
+const BUILTINS = ["exit", "echo", "type", "pwd", "cd"];
+
 const rl = createInterface({
   input: process.stdin,
   output: process.stdout,
   prompt: "$ ",
+  completer: (line: string) => {
+    const hits = BUILTINS.map((h) => h + " ").filter((c) => c.startsWith(line));
+    return [hits.length ? hits : [], line];
+  },
 });
 
 const findExec = (cmd: string) => {
@@ -30,7 +36,9 @@ const parseCmd = (input: string) => {
   return { cmd, args };
 };
 
-const parseRedirect = (args: string[]): { cleanArgs: string[]; redirect: Redirect | null } => {
+const parseRedirect = (
+  args: string[],
+): { cleanArgs: string[]; redirect: Redirect | null } => {
   for (let i = 0; i < args.length; i++) {
     const arg = args[i] as unknown;
     if (typeof arg !== "object") continue;
@@ -39,7 +47,11 @@ const parseRedirect = (args: string[]): { cleanArgs: string[]; redirect: Redirec
     const hasFd = args[i - 1] === "1" || args[i - 1] === "2";
     return {
       cleanArgs: args.slice(0, hasFd ? i - 1 : i),
-      redirect: { fd: args[i - 1] === "2" ? 2 : 1, append: op === ">>", file: args[i + 1] },
+      redirect: {
+        fd: args[i - 1] === "2" ? 2 : 1,
+        append: op === ">>",
+        file: args[i + 1],
+      },
     };
   }
   return { cleanArgs: args, redirect: null };
