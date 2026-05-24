@@ -163,6 +163,29 @@ const parseRedirect = (
   return { cleanArgs: args, redirect: null };
 };
 
+const printPrompt = () => {
+  printJobs(true);
+  rl.prompt();
+};
+
+const printJobs = (onlyDone = false) => {
+  if (!jobs.size) return;
+  const ids = [...jobs.keys()].sort((a, b) => a - b);
+  const latest = ids.at(-1);
+  const secondLatest = ids.at(-2);
+  let jobsTable = "";
+  const toReap: number[] = [];
+  jobs.forEach((value, jobId) => {
+    const isDone = value.status === JOBS_STATUS.DONE;
+    if (isDone) toReap.push(jobId);
+    if (onlyDone && !isDone) return;
+    const marker = jobId === latest ? "+" : jobId === secondLatest ? "-" : " ";
+    jobsTable += `[${jobId}]${marker}  ${value.status}${" ".repeat(17)}${value.job}\n`;
+  });
+  toReap.forEach((id) => jobs.delete(id));
+  if (jobsTable) process.stdout.write(jobsTable);
+};
+
 const lookUp: Record<string, (args: string[]) => string | void> = {
   exit: () => rl.close(),
   echo: (args) => args.join(" "),
@@ -202,21 +225,7 @@ const lookUp: Record<string, (args: string[]) => string | void> = {
       }
     }
   },
-  jobs: () => {
-    if (!jobs.size) return;
-    const ids = [...jobs.keys()].sort((a, b) => a - b);
-    const latest = ids.at(-1);
-    const secondLatest = ids.at(-2);
-    let jobsTable = "";
-    const toReap: number[] = [];
-    jobs.forEach((value, jobId) => {
-      const marker = jobId === latest ? "+" : jobId === secondLatest ? "-" : " ";
-      jobsTable += `[${jobId}]${marker}  ${value.status}${" ".repeat(17)}${value.job}\n`;
-      if (value.status === JOBS_STATUS.DONE) toReap.push(jobId);
-    });
-    toReap.forEach((id) => jobs.delete(id));
-    return jobsTable.trim();
-  },
+  jobs: () => printJobs(),
 };
 
 const BUILTINS = Object.keys(lookUp);
@@ -241,7 +250,7 @@ rl.on("line", (command) => {
     );
     child.unref();
     console.log(`[${jobId}] ${child.pid}`);
-    rl.prompt();
+    printPrompt();
     return;
   }
   const { cleanArgs, redirect } = parseRedirect(args);
@@ -261,7 +270,7 @@ rl.on("line", (command) => {
     } else {
       if (output !== undefined) console.log(output);
     }
-    if (cmd !== "exit") rl.prompt();
+    if (cmd !== "exit") printPrompt();
     return;
   }
 
@@ -271,6 +280,6 @@ rl.on("line", (command) => {
       execSync(command, { stdio: "inherit" });
     } catch {}
   } else console.log(`${command}: command not found`);
-  rl.prompt();
+  printPrompt();
 });
-rl.prompt();
+printPrompt();
