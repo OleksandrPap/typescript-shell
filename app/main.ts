@@ -204,10 +204,14 @@ const lookUp: Record<string, (args: string[]) => string | void> = {
   },
   jobs: () => {
     if (!jobs.size) return;
+    const ids = [...jobs.keys()].sort((a, b) => a - b);
+    const latest = ids.at(-1);
+    const secondLatest = ids.at(-2);
     let jobsTable = "";
     const toReap: number[] = [];
     jobs.forEach((value, jobId) => {
-      jobsTable += `[${jobId}]${jobId === jobs.size ? "+" : jobId === jobs.size - 1 ? "-" : " "}  ${value.status}${" ".repeat(17)}${value.job}\n`;
+      const marker = jobId === latest ? "+" : jobId === secondLatest ? "-" : " ";
+      jobsTable += `[${jobId}]${marker}  ${value.status}${" ".repeat(17)}${value.job}\n`;
       if (value.status === JOBS_STATUS.DONE) toReap.push(jobId);
     });
     toReap.forEach((id) => jobs.delete(id));
